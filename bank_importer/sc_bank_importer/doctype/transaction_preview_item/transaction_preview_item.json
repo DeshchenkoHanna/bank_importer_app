@@ -1,0 +1,102 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-07-16 10:12:16.149749",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "date",
+  "deposit",
+  "withdrawal",
+  "reference_number",
+  "currency",
+  "description",
+  "party_type",
+  "party",
+  "bank_transaction"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "width": "8%"
+  },
+  {
+   "columns": 1,
+   "fieldname": "deposit",
+   "fieldtype": "Currency",
+   "label": "Deposit",
+   "width": "8%"
+  },
+  {
+   "columns": 1,
+   "fieldname": "withdrawal",
+   "fieldtype": "Currency",
+   "label": "Withdrawal",
+   "width": "8%"
+  },
+  {
+   "columns": 1,
+   "fieldname": "reference_number",
+   "fieldtype": "Data",
+   "label": "Reference Number",
+   "width": "10%"
+  },
+  {
+   "columns": 1,
+   "fieldname": "currency",
+   "fieldtype": "Data",
+   "label": "Currency",
+   "width": "5%"
+  },
+  {
+   "columns": 1,
+   "fieldname": "description",
+   "fieldtype": "Data",
+   "label": "Description",
+   "width": "30%"
+  },
+  {
+   "columns": 1,
+   "fieldname": "party_type",
+   "fieldtype": "Link",
+   "label": "Party Type",
+   "options": "DocType",
+   "width": "6%"
+  },
+  {
+   "columns": 1,
+   "fieldname": "party",
+   "fieldtype": "Dynamic Link",
+   "label": "Party",
+   "options": "party_type",
+   "width": "10%"
+  },
+  {
+   "columns": 1,
+   "fieldname": "bank_transaction",
+   "fieldtype": "Link",
+   "label": "Bank Transaction",
+   "options": "Bank Transaction",
+   "read_only": 1,
+   "width": "10%"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-07-22 13:27:13.246652",
+ "modified_by": "Administrator",
+ "module": "SC Bank Importer",
+ "name": "Transaction Preview Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

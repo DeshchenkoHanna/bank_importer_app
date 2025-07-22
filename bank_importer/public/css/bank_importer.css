@@ -1,0 +1,13 @@
+.frappe-control[data-fieldname="transactions"] .grid-row .data-col {
+    height: auto !important;
+}
+
+.frappe-control[data-fieldname="transactions"] .grid-body .rows .grid-row {
+    min-height: 60px; 
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.frappe-control[data-fieldname="transactions"] .grid-row .data-col[data-fieldname="description"] {
+    white-space: normal !important;
+}
