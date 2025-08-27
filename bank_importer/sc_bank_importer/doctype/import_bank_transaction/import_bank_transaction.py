@@ -54,6 +54,33 @@ def find_existing_transaction(reference_number):
         return None
     return frappe.db.get_value("Bank Transaction", {"reference_number": reference_number, "docstatus": 1}, "name")
 
+def find_bank_account_by_iban(iban):
+    """Find bank account by IBAN, handling space formatting differences."""
+    if not iban:
+        return None
+    
+    # Normalize IBAN by removing spaces and converting to uppercase
+    normalized_iban = iban.replace(" ", "").upper()
+    
+    # First try direct match
+    direct_match = frappe.db.get_value("Bank Account", {"iban": iban}, "name")
+    if direct_match:
+        return direct_match
+    
+    # Get all bank accounts with IBANs and check normalized versions
+    all_accounts = frappe.get_all("Bank Account", 
+        fields=["name", "iban"], 
+        filters={"iban": ["!=", ""]})
+    
+    for account in all_accounts:
+        if account.iban:
+            # Normalize stored IBAN and compare
+            stored_normalized = account.iban.replace(" ", "").upper()
+            if stored_normalized == normalized_iban:
+                return account.name
+    
+    return None
+
 @frappe.whitelist()
 def process_camt53_file(file_url, from_date=None, to_date=None):
     if not file_url:
@@ -63,9 +90,13 @@ def process_camt53_file(file_url, from_date=None, to_date=None):
         file_content = file_doc.get_content()
         from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date() if from_date else None
         to_date_obj = datetime.strptime(to_date, '%Y-%m-%d').date() if to_date else None
-        namespaces = {'camt': 'urn:iso:std:iso:20022:tech:xsd:camt.053.001.02'}
-        if 'camt.053.001.10' in str(file_content):
-             namespaces = {'camt': 'urn:iso:std:iso:20022:tech:xsd:camt.053.001.10'}
+        # Detect CAMT version from file content
+        namespaces = {'camt': 'urn:iso:std:iso:20022:tech:xsd:camt.053.001.02'}  # default
+        file_content_str = str(file_content)
+        if 'camt.053.001.10' in file_content_str:
+            namespaces = {'camt': 'urn:iso:std:iso:20022:tech:xsd:camt.053.001.10'}
+        elif 'camt.053.001.04' in file_content_str:
+            namespaces = {'camt': 'urn:iso:std:iso:20022:tech:xsd:camt.053.001.04'}
         root = ET.fromstring(file_content)
         transactions_for_preview = []
         main_bank_account_iban = ""
@@ -73,22 +104,50 @@ def process_camt53_file(file_url, from_date=None, to_date=None):
             if not main_bank_account_iban:
                 main_bank_account_iban = stmt_element.findtext('./camt:Acct/camt:Id/camt:IBAN', default="", namespaces=namespaces)
             for ntry_element in stmt_element.findall('./camt:Ntry', namespaces):
+                # Check status - handle both formats
                 status_cd_element = ntry_element.find('./camt:Sts/camt:Cd', namespaces)
-                if status_cd_element is None or status_cd_element.text != 'BOOK':
+                status_direct_element = ntry_element.find('./camt:Sts', namespaces)
+                
+                status = None
+                if status_cd_element is not None:
+                    status = status_cd_element.text
+                elif status_direct_element is not None:
+                    status = status_direct_element.text
+                    
+                if status != 'BOOK':
                     continue
+                # Try different date formats: DtTm (version 001.10) or Dt (version 001.04)
                 date_time_element = ntry_element.find('./camt:BookgDt/camt:DtTm', namespaces)
                 if date_time_element is None:
                     date_time_element = ntry_element.find('./camt:ValDt/camt:DtTm', namespaces)
+                if date_time_element is None:
+                    # Try simple Dt format (UBS 001.04)
+                    date_time_element = ntry_element.find('./camt:BookgDt/camt:Dt', namespaces)
+                if date_time_element is None:
+                    date_time_element = ntry_element.find('./camt:ValDt/camt:Dt', namespaces)
                 if date_time_element is None or not date_time_element.text:
                     continue
-                transaction_date = datetime.fromisoformat(date_time_element.text).date()
+                
+                # Parse date based on format
+                date_text = date_time_element.text
+                if 'T' in date_text:
+                    # Full datetime format (001.10)
+                    transaction_date = datetime.fromisoformat(date_text).date()
+                else:
+                    # Simple date format (001.04)
+                    transaction_date = datetime.strptime(date_text, '%Y-%m-%d').date()
                 if from_date_obj and transaction_date < from_date_obj:
                     continue
                 if to_date_obj and transaction_date > to_date_obj:
                     continue
 
                 description = ntry_element.findtext('./camt:AddtlNtryInf', default="", namespaces=namespaces)
-                reference_number = ntry_element.findtext('./camt:BkTxCd/camt:Prtry/camt:Cd', default="", namespaces=namespaces)
+                
+                # Try different reference number locations for different bank formats
+                # Prefer AcctSvcrRef (UBS format) as it's more specific, fallback to BkTxCd/Prtry/Cd (Wise format)
+                reference_number = ntry_element.findtext('./camt:AcctSvcrRef', default="", namespaces=namespaces)  # UBS format
+                if not reference_number:
+                    reference_number = ntry_element.findtext('./camt:BkTxCd/camt:Prtry/camt:Cd', default="", namespaces=namespaces)  # Wise format
 
                 existing_transaction = find_existing_transaction(reference_number)
 
@@ -124,7 +183,7 @@ def process_camt53_file(file_url, from_date=None, to_date=None):
                     current_row_data["party_type"] = found_party["party_type"]
                     current_row_data["party"] = found_party["party"]
                 transactions_for_preview.append(current_row_data)
-        erpnext_bank_account_name = frappe.db.get_value("Bank Account", {"iban": main_bank_account_iban}, "name")
+        erpnext_bank_account_name = find_bank_account_by_iban(main_bank_account_iban)
         return {
             "bank_account": erpnext_bank_account_name,
             "transactions": transactions_for_preview
