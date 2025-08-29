@@ -5,6 +5,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "camt53_folder",
+  "column_break_jwxl",
   "camt53_file",
   "section_break_vyxr",
   "from_date",
@@ -58,14 +60,23 @@
    "fieldtype": "Link",
    "label": "Bank Account",
    "options": "Bank Account"
+  },
+  {
+   "fieldname": "camt53_folder",
+   "fieldtype": "Data",
+   "label": "CAMT53 Folder"
+  },
+  {
+   "fieldname": "column_break_jwxl",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-07-22 13:27:13.349841",
- "modified_by": "Administrator",
+ "modified": "2025-08-28 10:08:49.413050",
+ "modified_by": "hanna.deshchenko@swisscluster.com",
  "module": "SC Bank Importer",
  "name": "Import Bank Transaction",
  "owner": "hanna.deshchenko@swisscluster.com",
